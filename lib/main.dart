@@ -1,67 +1,80 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:serious_python/serious_python.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  String _pyResult = "Running...";
+
+  @override
+  void initState() {
+    super.initState();
+    initPlatformState();
+  }
+
+  // Platform messages are asynchronous, so we initialize in an async method.
+  Future<void> initPlatformState() async {
+    String? pyResult;
+
+    Directory tempDir =
+    await (await getTemporaryDirectory()).createTemp("run_example");
+
+    String resultFileName = p.join(tempDir.path, "out.txt");
+    String resultValue = "aa";
+
+    await SeriousPython.run("assets/test.py",
+        environmentVariables: {
+          "RESULT_FILENAME": resultFileName,
+          "RESULT_VALUE": resultValue
+        },
+        sync: false);
+
+    // try reading out.txt in a loop
+    var i = 30;
+    while (i-- > 0) {
+      var out = File(resultFileName);
+      if (await out.exists()) {
+        var r = await out.readAsString();
+        pyResult = (r == resultValue) ? "PASS" : r;
+        break;
+      } else {
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+
+    // If the widget was removed from the tree while the asynchronous platform
+    // message was in flight, we want to discard the reply rather than calling
+    // setState to update our non-existent appearance.
+    if (!mounted) return;
+
+    setState(() {
+      _pyResult = pyResult ?? "TIMEOUT";
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MyHomePage(),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  String _output = "Press the button to run Python code";
-
-  void _runPython(int a, int b) async {
-    try {
-      var result = await SeriousPython.run("assets/test.zip",
-          appFileName: "test.py",
-          environmentVariables: {"a": "1", "b": "2"});
-      print('a');
-      print(result);
-      setState(() {
-        if(result != null) _output = result;
-      });
-    } catch (e) {
-      setState(() {
-        _output = "Error: $e";
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    int a = 3;
-    int b = 4;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Serious Python Example'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              _output,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 24),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _runPython(a, b),
-              child: Text('Run Python Code'),
-            ),
-          ],
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('Serious Python example app'),
+        ),
+        body: Center(
+          child: Text(_pyResult),
         ),
       ),
     );
