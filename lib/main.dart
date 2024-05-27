@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:adjust_english_text/utils.dart';
 import 'package:serious_python/serious_python.dart';
 
 void main() {
@@ -35,12 +34,13 @@ class _MyAppState extends State<MyApp> {
     await (await getTemporaryDirectory()).createTemp("run_example");
 
     String resultFileName = p.join(tempDir.path, "out.txt");
-    String resultValue = getRandomString(20);
+    String resultValue = "1";
 
     await SeriousPython.run("assets/test.py",
         environmentVariables: {
           "RESULT_FILENAME": resultFileName,
-          "RESULT_VALUE": resultValue
+          "a": "1",
+          "b": "2"
         },
         sync: false);
 
@@ -50,7 +50,7 @@ class _MyAppState extends State<MyApp> {
       var out = File(resultFileName);
       if (await out.exists()) {
         var r = await out.readAsString();
-        pyResult = (r == resultValue) ? "PASS" : r;
+        pyResult = r;
         break;
       } else {
         await Future.delayed(const Duration(seconds: 1));
